@@ -6,6 +6,9 @@ import sounddevice as sd
 SAMPLE_RATE = 48000
 MAX_AMPLITUDE = 0.708
 
+ATTACK_TIME = 0.01
+RELEASE_TIME = 0.01
+
 
 def note_to_frequency(note_number):
     """
@@ -28,14 +31,48 @@ def generate_sawtooth(frequency, duration):
     return waveform * MAX_AMPLITUDE
 
 
+def play_audio(audio):
+    """Play generated audio through speakers."""
+    sd.play(audio, SAMPLE_RATE)
+    sd.wait()
+
+
+def apply_envelope(samples):
+    """
+    Apply a fixed attack-release envelope.
+
+    Attack: Volume increases from 0 to 100% over the first 10 milliseconds.
+    Release: Volume decreases from 100% to 0 over the last 10 milliseconds.
+
+    Returns the scaled audio samples by the envelope values.
+    """
+
+    # Convert attack/release times to sample counts
+    attack_samples = int(ATTACK_TIME * SAMPLE_RATE)
+    release_samples = int(RELEASE_TIME * SAMPLE_RATE)
+
+    envelope = np.ones(len(samples)) # Full volume
+
+    # Linear fade-in
+    envelope[:attack_samples] = np.linspace(0, 1, attack_samples)
+
+    # Linear fade-out
+    envelope[-release_samples:] = np.linspace(1, 0, release_samples)
+
+    return samples * envelope
+
+
 def main():
-    print("Personal MIDI Synth\n")
+    print("MIDI Synthesizer\n")
 
     frequency = note_to_frequency(69)
     samples = generate_sawtooth(frequency, 1)
     print("Generated samples:", len(samples))
     print("First 10 samples:")
     print(samples[:10])
+
+    samples = apply_envelope(samples)
+    play_audio(samples)
 
 if __name__ == "__main__":
     main()
