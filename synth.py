@@ -35,7 +35,6 @@ def generate_sawtooth(frequency, duration):
 def play_audio(audio):
     """Play generated audio through speakers."""
     sd.play(audio, SAMPLE_RATE)
-    sd.wait()
 
 
 def apply_envelope(samples):
@@ -64,7 +63,8 @@ def apply_envelope(samples):
 
 
 def main():
-    print("Available MIDI Input Devices:\n")
+    print("MIDI Synthesizer\n")
+    print("Available MIDI Input Devices:")
 
     input_devices = mido.get_input_names()
 
@@ -75,25 +75,29 @@ def main():
     for device in input_devices:
         print(device)
     
-    print("Waiting for MIDI input...\n")
+    print("\nWaiting for MIDI input...\n")
 
     # Open the first available MIDI input device
-    input_name = mido.get_input_names()[0]
+    input_name = input_devices[0]
+    print(f"Using MIDI device: {input_name}")
 
     with mido.open_input(input_name) as port:
         for message in port:
             print(message)
-        
-    #print("MIDI Synthesizer\n")
 
-    frequency = note_to_frequency(69)
-    samples = generate_sawtooth(frequency, 1)
-    print("Generated samples:", len(samples))
-    print("First 10 samples:")
-    print(samples[:10])
+            # Start note
+            if (message.type == "note_on" and message.velocity > 0):
+                frequency = note_to_frequency(message.note)
+                samples = generate_sawtooth(frequency, 0.5)
 
-    samples = apply_envelope(samples)
-    play_audio(samples)
+                samples = apply_envelope(samples)
+                play_audio(samples)
+
+            # End note
+            elif (message.type == "note_off"
+                or (message.type == "note_on" and message.velocity == 0)):
+                sd.stop()
+
 
 if __name__ == "__main__":
     main()
