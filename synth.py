@@ -10,6 +10,11 @@ MAX_AMPLITUDE = 0.708
 ATTACK_TIME = 0.01
 RELEASE_TIME = 0.01
 
+current_frequency = None
+phase = 0
+releasing = False
+envelope_level = 0.0
+
 
 def note_to_frequency(note_number):
     """
@@ -30,11 +35,6 @@ def generate_sawtooth(frequency, duration):
     waveform = (2 * ((samples * frequency / SAMPLE_RATE) % 1)) - 1
 
     return waveform * MAX_AMPLITUDE
-
-
-def play_audio(audio):
-    """Play generated audio through speakers."""
-    sd.play(audio, SAMPLE_RATE)
 
 
 def apply_envelope(samples):
@@ -62,7 +62,52 @@ def apply_envelope(samples):
     return samples * envelope
 
 
+def audio_callback(outdata, frames, time, status):
+    global phase
+    global envelope_level
+    global current_frequency
+    global releasing
+
+    samples = np.zeros(frames)
+
+    if current_frequency is not None:
+
+        for i in range(frames):
+
+            # Sawtooth wave from -1 to 1
+            sample = (2 * phase) - 1
+
+            # Attack
+            if not releasing:
+                envelope_level += 1 / (ATTACK_TIME * SAMPLE_RATE)
+                envelope_level = min(envelope_level, 1.0)
+
+            # Release
+            else:
+                envelope_level -= 1 / (RELEASE_TIME * SAMPLE_RATE)
+                envelope_level = max(envelope_level, 0.0)
+
+                if envelope_level <= 0:
+                    envelope_level = 0
+                    current_frequency = None
+
+            samples[i] = (sample * envelope_level * MAX_AMPLITUDE)
+
+            if current_frequency is not None:
+                phase += current_frequency / SAMPLE_RATE
+
+                if phase >= 1:
+                    phase -= 1
+
+    outdata[:] = samples.reshape(-1, 1)
+
+
 def main():
+    global current_frequency
+    global releasing
+    global envelope_level
+    global phase
+
     print("MIDI Synthesizer\n")
     print("Available MIDI Input Devices:")
 
@@ -81,22 +126,29 @@ def main():
     input_name = input_devices[0]
     print(f"Using MIDI device: {input_name}")
 
+    stream = sd.OutputStream(
+        samplerate=SAMPLE_RATE,
+        channels=1,
+        callback=audio_callback
+    )
+
+    stream.start()
+
     with mido.open_input(input_name) as port:
         for message in port:
             print(message)
 
             # Start note
             if (message.type == "note_on" and message.velocity > 0):
-                frequency = note_to_frequency(message.note)
-                samples = generate_sawtooth(frequency, 0.5)
-
-                samples = apply_envelope(samples)
-                play_audio(samples)
+                current_frequency = note_to_frequency(message.note)
+                releasing = False
+                envelope_level = 0.0
+                phase = 0
 
             # End note
             elif (message.type == "note_off"
                 or (message.type == "note_on" and message.velocity == 0)):
-                sd.stop()
+                releasing = True
 
 
 if __name__ == "__main__":
