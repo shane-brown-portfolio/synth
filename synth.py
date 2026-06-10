@@ -1,6 +1,7 @@
 import argparse
 import numpy as np
 import sounddevice as sd
+import mido
 
 # Audio Generation Constants
 SAMPLE_RATE = 48000
@@ -63,7 +64,27 @@ def apply_envelope(samples):
 
 
 def main():
-    print("MIDI Synthesizer\n")
+    print("Available MIDI Input Devices:\n")
+
+    input_devices = mido.get_input_names()
+
+    if not input_devices:
+        print("No MIDI devices found.")
+        return
+
+    for device in input_devices:
+        print(device)
+    
+    print("Waiting for MIDI input...\n")
+
+    # Open the first available MIDI input device
+    input_name = mido.get_input_names()[0]
+
+    with mido.open_input(input_name) as port:
+        for message in port:
+            print(message)
+        
+    #print("MIDI Synthesizer\n")
 
     frequency = note_to_frequency(69)
     samples = generate_sawtooth(frequency, 1)
