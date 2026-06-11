@@ -80,6 +80,7 @@ class Synth:
     def note_on(self, note_number):
         """ Start playing a note. """
         self.curr_frequency = note_to_frequency(note_number)
+        self.envelope_level = 0.0
         self.releasing = False
 
     def note_off(self):
@@ -140,7 +141,7 @@ def main():
         input_name = args.midi_device
 
     else:
-        # Open the first available MIDI input device
+        # Use the first available MIDI device by default
         input_name = input_devices[0]
     
     print(f"\nUsing MIDI device: {input_name}")
@@ -153,20 +154,26 @@ def main():
         channels=1,
         callback=synth.audio_callback
     ):
-        print("\nWaiting for MIDI input...\n")
+        print("\nWaiting for MIDI input... (Press Ctrl+C to quit)\n")
 
-        with mido.open_input(input_name) as midi_input:
-            for message in midi_input:
-                print(message)
+        try:
+            with mido.open_input(input_name) as midi_input:
+                for message in midi_input:
+                    print(message)
 
-                # Start note
-                if (message.type == "note_on" and message.velocity > 0):
-                    synth.note_on(message.note)
+                    # Start note
+                    if message.type == "note_on" and message.velocity > 0:
+                        synth.note_on(message.note)
 
-                # End note
-                elif (message.type == "note_off"
-                    or (message.type == "note_on" and message.velocity == 0)):
-                    synth.note_off()
+                    # End note
+                    elif (
+                        message.type == "note_off"
+                        or (message.type == "note_on" and message.velocity == 0)
+                    ):
+                        synth.note_off()
+
+        except KeyboardInterrupt:
+            print("\nExiting synthesizer...")
 
 
 if __name__ == "__main__":
