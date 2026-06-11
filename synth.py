@@ -105,22 +105,45 @@ class Synth:
             self.curr_frequency = None
             self.releasing = False
 
+
 def main():
+    parser = argparse.ArgumentParser(
+        description="MIDI Synthesizer"
+    )
+
+    parser.add_argument(
+        "--midi-device",
+        help="Name of the MIDI input device to use"
+    )
+
+    args = parser.parse_args()
+
     print("MIDI Synthesizer\n")
-    print("Available MIDI Input Devices:")
 
     input_devices = mido.get_input_names()
 
     if not input_devices:
         print("No MIDI devices found.")
         return
-
+    
+    # Display all available MIDI input devices
+    print("Available MIDI Input Devices:")
     for device in input_devices:
-        print(device)
+        print(f"  {device}")
 
-    # Open the first available MIDI input device
-    input_name = input_devices[0]
-    print(f"Using MIDI device: {input_name}")
+    if args.midi_device:
+        # Verify that the requested device exists
+        if args.midi_device not in input_devices:
+            print(f"\nError: MIDI device '{args.midi_device}' not found.")
+            return
+
+        input_name = args.midi_device
+
+    else:
+        # Open the first available MIDI input device
+        input_name = input_devices[0]
+    
+    print(f"\nUsing MIDI device: {input_name}")
 
     # Declare synthesizer instance
     synth = Synth()
